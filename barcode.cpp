@@ -2,7 +2,11 @@
 #include "json.h"
 #include <iostream>
 #include "mqClient.h"
+#include "boxconfig.h"
 using namespace std;
+
+const string confirmStr = "ISESOL";
+const string confirmStr2 = "isesol";
 
 barcode::barcode()
 {
@@ -12,14 +16,32 @@ barcode::barcode()
 
 void barcode::onGetStr(const string& str)
 {
-    string packet = generatePacket(str);
-	cout << "get content is " << str << endl;
+    if(str != confirmStr && str != confirmStr2)
+    {
+        cout << "getStr is " << str << endl;
+        preStr = str;
+        return;
+    }
+    string packet = generatePacket(preStr);
+	cout << "confirmed, content is " << preStr << endl;
     cout << "json is " << packet << endl;
     mqClient::getInstance().publish("command/x/test", packet);
 }
 
 string barcode::generatePacket(const string& id)
 {
+    string cfgFile = "common.properties";
+    Config cfg;
+	if (cfg.FileExist(cfgFile))
+	{
+		cfg.ReadFile(cfgFile);
+	}
+    else
+    {
+        cout  << "read  file fail " << endl;
+    }
+    string machineno = cfg.Read<string>("machineno", "");
+    cout << "machineno is " <<  machineno << endl;
     Json::Value val;
     val["encode"] = "false";
     val["id"] = "123";
@@ -36,6 +58,7 @@ string barcode::generatePacket(const string& id)
     val["content"] = content;
     return val.toStyledString();
     
+   
 }
 void barcode::messageArrived(char* topicName, int topicLen, MQTTAsync_message* message)
 {
@@ -49,12 +72,12 @@ void barcode::connectLost(char* cause)
 
 void barcode::connectSuccess(MQTTAsync_successData* response)
 {
-    cout << "barcode connect success" << endl;
+    cout << "barcode connect mq success" << endl;
 }
 
 void barcode::connectFail(MQTTAsync_failureData* response)
 {
-    cout << "barcode connect fail" << endl;
+    cout << "barcode connect mq fail" << endl;
 }
 
 void barcode::subscribeOk(MQTTAsync_successData* response)
